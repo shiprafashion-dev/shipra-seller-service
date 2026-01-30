@@ -1,0 +1,6 @@
+handle,title,vendor,category_id,sku,price,stock,size,color,image_url
+nike-air-max-001,Nike Air Max 270,Nike,1,NK-AM-270-10,8995,50,10,Black,https://res.cloudinary.com/demo/image/upload/v1/sample.jpg
+nike-air-max-001,Nike Air Max 270,Nike,1,NK-AM-270-11,8995,30,11,Black,https://res.cloudinary.com/demo/image/upload/v1/sample.jpg
+levis-511-slim,Levis 511 Slim Fit,Levis,2,LEV-511-32,2599,100,32,Blue,https://res.cloudinary.com/demo/image/upload/v2/sample.jpg
+roadster-pure-cotton,Roadster Pure Cotton Shirt,Roadster,6,RD-SHT-LRG,1299,150,L,White,https://res.cloudinary.com/demo/image/upload/v3/sample.jpg
+zara-floral-dress,Zara Floral Summer Dress,Zara,3,ZAR-DRS-SML,3499,40,S,Floral,https://res.cloudinary.com/demo/image/upload/v4/sample.jpg
