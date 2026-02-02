@@ -1,5 +1,5 @@
 import multer from 'multer';
-import { updateBankDetails } from '../controllers/bankController.js';
+import { updateBrandDetails } from '../controllers/brandController.js';
 const upload = multer({ dest: 'temp/brand_docs/' });
 import { verifyToken } from '../middlewares/authMiddleware.js';
 import express from 'express';
@@ -12,6 +12,6 @@ router.post(
     { name: 'catalog_details', maxCount: 1 },
     { name: 'document_proof', maxCount: 1 }
   ]), 
-  updateBankDetails
+  updateBrandDetails
 );
 export default router;

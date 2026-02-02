@@ -1,3 +1,5 @@
+import { pool } from '../config/db.js';
+
 export const updateBrandDetails = async (req, res) => {
   const sellerId = req.seller.id;
   

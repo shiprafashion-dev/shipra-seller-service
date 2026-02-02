@@ -11,6 +11,7 @@ import variantRoutes from './src/routes/variantRouter.js';
 import categoryRoutes from './src/routes/categoryRouter.js';
 import warehouseRoutes from './src/routes/warehouseRoutes.js';
 import brandRoutes from './src/routes/brandRoutes.js';
+import orderRoutes from './src/routes/orderRoutes.js';
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/products', variantRoutes);
 app.use('/api/warehouse', warehouseRoutes);
 app.use('/api/brand', brandRoutes);
+app.use('/api/orders', orderRoutes);
 
 // --- Database Connection Test ---
 pool.query('SELECT NOW()', (err, res) => {
