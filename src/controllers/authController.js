@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs'; // Ensure you install this: npm install bcryptjs
 
 // Helper for Regex Validation
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
@@ -99,9 +100,9 @@ export const updateGSTDetails = async (req, res) => {
 export const updateBasicInformation = async (req, res) => {
   const sellerId = req.seller.id;
   
-  // Extracting data from req.body (sent via form-data)
   const {
     organization_email,
+    password, // 1. Added from body
     primary_contact_name,
     primary_contact_phone,
     primary_contact_email,
@@ -115,29 +116,60 @@ export const updateBasicInformation = async (req, res) => {
     tan_number
   } = req.body;
 
-  // File URLs (assuming you have a middleware that uploads to Cloudinary/S3)
   const signature_url = req.files?.signature ? req.files.signature[0].path : null;
   const tan_document_url = req.files?.tan_document ? req.files.tan_document[0].path : null;
 
   try {
+    // 2. Hash password if it exists
+    let hashedPassword = null;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
+    // 3. Updated Query (Now has 15 placeholders + 1 for WHERE clause = 16 total)
     const queryText = `
       UPDATE sellers 
       SET 
-        organization_email = $1, primary_contact_name = $2, primary_contact_phone = $3, 
-        primary_contact_email = $4, business_owner_name = $5, owner_contact_number = $6, 
-        owner_email_id = $7, is_existing_partner = $8, entity_type = $9, 
-        myntra_generated_invoice = $10, signature_url = $11, needs_tds_benefits = $12, 
-        tan_number = $13, tan_document_url = $14, 
-        current_step = 5, updated_at = NOW()
-      WHERE id = $15 RETURNING id, current_step;
+        organization_email = $1, 
+        password = COALESCE($2, password), -- Placeholder $2
+        primary_contact_name = $3, 
+        primary_contact_phone = $4, 
+        primary_contact_email = $5, 
+        business_owner_name = $6, 
+        owner_contact_number = $7, 
+        owner_email_id = $8, 
+        is_existing_partner = $9, 
+        entity_type = $10, 
+        myntra_generated_invoice = $11, 
+        signature_url = $12, 
+        needs_tds_benefits = $13, 
+        tan_number = $14, 
+        tan_document_url = $15, 
+        current_step = 5, 
+        updated_at = NOW()
+      WHERE id = $16 -- $16 matches the 16th value in the array
+      RETURNING id, current_step;
     `;
 
+    // 4. Values array (Must have exactly 16 items)
     const values = [
-      organization_email, primary_contact_name, primary_contact_phone,
-      primary_contact_email, business_owner_name, owner_contact_number,
-      owner_email_id, is_existing_partner === 'Yes', entity_type,
-      myntra_generated_invoice === 'Yes', signature_url, needs_tds_benefits === 'Yes',
-      tan_number, tan_document_url, sellerId
+      organization_email,       // $1
+      hashedPassword,           // $2
+      primary_contact_name,     // $3
+      primary_contact_phone,    // $4
+      primary_contact_email,    // $5
+      business_owner_name,      // $6
+      owner_contact_number,     // $7
+      owner_email_id,           // $8
+      is_existing_partner === 'Yes', // $9
+      entity_type,              // $10
+      myntra_generated_invoice === 'Yes', // $11
+      signature_url,            // $12
+      needs_tds_benefits === 'Yes', // $13
+      tan_number,               // $14
+      tan_document_url,         // $15
+      sellerId                  // $16
     ];
 
     const result = await pool.query(queryText, values);
@@ -150,5 +182,58 @@ export const updateBasicInformation = async (req, res) => {
   } catch (error) {
     console.error("Basic Info Update Error:", error);
     res.status(500).json({ message: "Failed to update basic information" });
+  }
+};
+
+export const loginWithEmail = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Please provide email and password" });
+  }
+
+  try {
+    // 1. Check if seller exists by organization_email or owner_email_id
+    const queryText = `
+      SELECT * FROM sellers 
+      WHERE organization_email = $1 OR owner_email_id = $1;
+    `;
+    const result = await pool.query(queryText, [email]);
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ message: "Invalid Credentials" });
+    }
+
+    const seller = result.rows[0];
+
+    // 2. Compare Password (assuming you store hashed passwords)
+    // If you haven't implemented password setting yet, you can skip this 
+    // or use a temporary check.
+    const isMatch = await bcrypt.compare(password, seller.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid Credentials" });
+    }
+
+    // 3. Generate Token
+    const token = jwt.sign(
+      { id: seller.id, email: seller.organization_email },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // 4. Send Response
+    res.status(200).json({ 
+      success: true, 
+      token, 
+      seller: {
+        id: seller.id,
+        email: seller.organization_email,
+        current_step: seller.current_step,
+        is_onboarded: seller.is_onboarded
+      } 
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 };

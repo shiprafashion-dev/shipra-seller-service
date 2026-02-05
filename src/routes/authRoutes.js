@@ -1,5 +1,5 @@
 import express from 'express';
-import { loginWithOTP, updateGSTDetails, updateBasicInformation } from '../controllers/authController.js';
+import { loginWithOTP, updateGSTDetails, updateBasicInformation,loginWithEmail } from '../controllers/authController.js';
 import { checkOnboardingStatus } from '../controllers/onboardingController.js';
 import {updateBankDetails} from "../controllers/bankController.js";
 import { verifyToken } from '../middlewares/authMiddleware.js';
@@ -8,6 +8,7 @@ const router = express.Router();
 const upload = multer({ dest: 'temp/uploads/' }); // Or your Cloudinary config
 // Public Route
 router.post('/login', loginWithOTP);
+router.post('/login-email', loginWithEmail);
 
 // Protected Onboarding Routes
 router.put('/onboard/gst', verifyToken, updateGSTDetails);

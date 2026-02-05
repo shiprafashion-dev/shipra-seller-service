@@ -81,10 +81,10 @@ export const updateOrderItemStatus = async (req, res) => {
 
 
 export const getSellerDashboard = async (req, res) => {
-  const sellerId = req.seller.id; // Extracted from the verifyToken middleware
+  const sellerId = req.seller.id;
 
   try {
-    // Define all three queries
+    // 1. Total Revenue
     const revenueQuery = `
       SELECT SUM(oi.quantity * oi.price_at_purchase) AS total_revenue
       FROM order_items oi
@@ -92,6 +92,22 @@ export const getSellerDashboard = async (req, res) => {
       WHERE p.seller_id = $1;
     `;
 
+    // 2. Total Orders (Distinct orders containing this seller's products)
+    const ordersCountQuery = `
+      SELECT COUNT(DISTINCT(oi.order_id)) AS total_orders
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.product_id
+      WHERE p.seller_id = $1;
+    `;
+
+    // 3. Products Listed (Count of unique products by this seller)
+    const productsCountQuery = `
+      SELECT COUNT(*) AS total_products
+      FROM products
+      WHERE seller_id = $1;
+    `;
+
+    // 4. Top Selling Products
     const topSellingQuery = `
       SELECT p.title, SUM(oi.quantity) AS units_sold
       FROM order_items oi
@@ -101,15 +117,18 @@ export const getSellerDashboard = async (req, res) => {
       ORDER BY units_sold DESC LIMIT 5;
     `;
 
+    // 5. Low Stock Query
     const lowStockQuery = `
       SELECT title, inventory_quantity 
       FROM products 
       WHERE seller_id = $1 AND inventory_quantity < 10;
     `;
 
-    // Execute all simultaneously
-    const [revenueRes, topSellingRes, lowStockRes] = await Promise.all([
+    // Execute all 5 queries simultaneously for high performance
+    const [revenueRes, ordersRes, productsRes, topSellingRes, lowStockRes] = await Promise.all([
       pool.query(revenueQuery, [sellerId]),
+      pool.query(ordersCountQuery, [sellerId]),
+      pool.query(productsCountQuery, [sellerId]),
       pool.query(topSellingQuery, [sellerId]),
       pool.query(lowStockQuery, [sellerId])
     ]);
@@ -117,7 +136,9 @@ export const getSellerDashboard = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        revenue: revenueRes.rows[0].total_revenue || 0,
+        revenue: parseFloat(revenueRes.rows[0].total_revenue || 0),
+        totalOrders: parseInt(ordersRes.rows[0].total_orders || 0),
+        totalProducts: parseInt(productsRes.rows[0].total_products || 0),
         topProducts: topSellingRes.rows,
         lowStockAlerts: lowStockRes.rows
       }
